@@ -1,14 +1,14 @@
-# Importar el módulo de validaciones
+# Importar el modulo de validaciones
 . "$PSScriptRoot/Modulos/Validaciones.ps1"
 . "$PSScriptRoot/Modulos/usua.ps1"
 . "$PSScriptRoot/Modulos/ftpmanagement.ps1"
 
 
 
-# Menú interactivo
+# Menu interactivo
 function Menu-Principal {
     do {
-        Write-Host "`n=== Menú Principal ===" -ForegroundColor Cyan
+        Write-Host "`n=== Menu Principal ===" -ForegroundColor Cyan
         Write-Host "1. Instalar y Configurar Servidor FTP"
         Write-Host "2. Crear Usuario FTP"
         Write-Host "3. Cambiar Grupo de Usuario"
