@@ -1,9 +1,8 @@
-# Funcion para instalar IIS y FTP
-$FtpRoot = "C:\FTP"
+# Script para instalación y configuración del Servidor FTP
+$FtpRoot = "C:\FTPServer"
 
 function Instalar-FTP {
     Import-Module ServerManager
-
     $features = @("Web-Server", "Web-Ftp-Server", "Web-Ftp-Service", "Web-Ftp-Ext")
 
     try {
@@ -13,13 +12,17 @@ function Instalar-FTP {
                 Install-WindowsFeature -Name $feature -IncludeManagementTools -ErrorAction Stop
             }
         }
+
+        # Habilitar reglas de firewall para FTP
+        New-NetFirewallRule -DisplayName "FTP Allow Port 21" -Direction Inbound -Protocol TCP -LocalPort 21 -Action Allow
+        New-NetFirewallRule -DisplayName "FTP Passive Ports" -Direction Inbound -Protocol TCP -LocalPort 50000-51000 -Action Allow
+
         Write-Host "IIS y FTP instalados correctamente." -ForegroundColor Green
     } catch {
         Write-Host "Error al instalar IIS y FTP: $_" -ForegroundColor Red
     }
 }
 
-# Configurar el servidor FTP
 function Configurar-FTP {
     Import-Module WebAdministration
 
@@ -32,34 +35,13 @@ function Configurar-FTP {
             Set-WebConfigurationProperty -Filter "/system.ftpServer/security/authentication/basicAuthentication" -Name "enabled" -Value $true
         }
 
+        # Configurar modo pasivo de FTP
+        Set-WebConfigurationProperty -Filter "/system.ftpServer/firewallSupport" -Name "lowDataChannelPort" -Value 50000
+        Set-WebConfigurationProperty -Filter "/system.ftpServer/firewallSupport" -Name "highDataChannelPort" -Value 51000
+
         Restart-WebItem "IIS:\Sites\FTPServidor"
         Write-Host "Servidor FTP configurado correctamente." -ForegroundColor Green
     } catch {
         Write-Host "Error al configurar el servidor FTP: $_" -ForegroundColor Red
-    }
-}
-
-# Configurar estructura de carpetas FTP
-function Configurar-CarpetasFTP {
-    $gruposDir = "$FtpRoot\Grupos"
-    $publicDir = "$FtpRoot\Publico"
-
-    try {
-        New-Item -Path $FtpRoot, $gruposDir, $publicDir -ItemType Directory -Force
-
-        $grupos = @("Reprobados", "Recursadores")
-        foreach ($grupo in $grupos) {
-            if (-not (Get-LocalGroup -Name $grupo -ErrorAction SilentlyContinue)) {
-                New-LocalGroup -Name $grupo -Description "Grupo de $grupo"
-            }
-            New-Item -Path "$gruposDir\$grupo" -ItemType Directory -Force
-        }
-
-        icacls $publicDir /grant "IIS_IUSRS:R" /T /C
-        icacls $publicDir /grant "Everyone:R" /T /C
-
-        Write-Host "Estructura de directorios y permisos configurados." -ForegroundColor Green
-    } catch {
-        Write-Host "Error al configurar carpetas FTP: $_" -ForegroundColor Red
     }
 }

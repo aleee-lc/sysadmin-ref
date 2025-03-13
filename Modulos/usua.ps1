@@ -1,87 +1,46 @@
-# Definir ruta raíz para FTP
-$FtpRoot = "C:\FTP"
+$FtpRoot = "C:\FTPServer"
 
-# Función para crear un usuario FTP
 function Crear-UsuarioFTP {
-    param (
-        [string]$NombreUsuario = $(Validar-NombreUsuario),
-        [string]$Password = $(Validar-Contraseña -NombreUsuario $NombreUsuario)
-    )
+    Write-Host "`n=== Crear Usuario FTP ==="
 
-    while ($true) {
-        $Grupo = switch (Read-Host "Seleccione el grupo: 1 para Reprobados, 2 para Recursadores") {
-            "1" { "Reprobados" }
-            "2" { "Recursadores" }
-            default {
-                Write-Host "Opción inválida. Debe seleccionar 1 o 2." -ForegroundColor Red
-                continue
-            }
+    do {
+        $Username = Read-Host "Ingrese el nombre de usuario"
+    } until (Validar-NombreUsuario -Username $Username)
+
+    do {
+        $Password = Read-Host -AsSecureString "Ingrese la contraseña"
+        $PasswordPlainText = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
+            [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
+        )
+    } until (Validar-Contraseña -Password $PasswordPlainText -Username $Username)
+
+    # Seleccionar grupo
+    do {
+        Write-Host "Seleccione el grupo:"
+        Write-Host "1. Reprobados"
+        Write-Host "2. Recursadores"
+        $GrupoOpcion = Read-Host "Opción (1 o 2)"
+        switch ($GrupoOpcion) {
+            "1" { $Grupo = "Reprobados"; break }
+            "2" { $Grupo = "Recursadores"; break }
+            default { Write-Warning "Opción inválida. Intente de nuevo."; continue }
         }
-        break
-    }
+    } until ($Grupo)
 
     try {
-        # Crear el grupo si no existe
-        if (-not (Get-LocalGroup -Name $Grupo -ErrorAction SilentlyContinue)) {
-            New-LocalGroup -Name $Grupo
-        }
-
-        # Crear usuario
-        New-LocalUser -Name $NombreUsuario -Password (ConvertTo-SecureString $Password -AsPlainText -Force) -FullName $NombreUsuario -Description "Usuario FTP"
-
-        # Agregar usuario a los grupos
-        Add-LocalGroupMember -Group $Grupo -Member $NombreUsuario
-        Add-LocalGroupMember -Group "Users" -Member $NombreUsuario
-
-        # Crear carpeta para el usuario
-        $UserFTPPath = "$FtpRoot\Usuarios\$NombreUsuario"
-        if (!(Test-Path $UserFTPPath)) { 
-            New-Item -ItemType Directory -Path $UserFTPPath -Force
-        }
-
-        # Aplicar permisos con icacls usando formato seguro
-        $Permiso = "$($NombreUsuario):(OI)(CI)F"
-        icacls $UserFTPPath /grant $Permiso
-
-        Write-Host "Usuario $NombreUsuario creado en el grupo $Grupo con acceso a $UserFTPPath." -ForegroundColor Green
+        New-LocalUser -Name $Username -Password $Password
+        Add-LocalGroupMember -Group $Grupo -Member $Username
+        Write-Host "Usuario '$Username' creado en grupo '$Grupo'." -ForegroundColor Green
     } catch {
-        Write-Host "Error al crear usuario FTP: $_" -ForegroundColor Red
-    }
-}
-
-# Función para cambiar el grupo de un usuario FTP
-function Cambiar-GrupoUsuarioFTP {
-    $NombreUsuario = Read-Host "Ingrese el nombre del usuario"
-
-    if (-not (Get-LocalUser -Name $NombreUsuario -ErrorAction SilentlyContinue)) {
-        Write-Host "Error: El usuario no existe." -ForegroundColor Red
+        Write-Error "Error al crear el usuario: $_"
         return
     }
 
-    while ($true) {
-        $NuevoGrupo = switch (Read-Host "Seleccione el nuevo grupo: 1 para Reprobados, 2 para Recursadores") {
-            "1" { "Reprobados" }
-            "2" { "Recursadores" }
-            default {
-                Write-Host "Opción inválida. Debe seleccionar 1 o 2." -ForegroundColor Red
-                continue
-            }
-        }
-        break
+    $UserFTPPath = "$FtpRoot\LocalUser\$Username"
+    if (!(Test-Path $UserFTPPath)) {
+        New-Item -ItemType Directory -Path $UserFTPPath
     }
 
-    try {
-        # Eliminar al usuario de los grupos anteriores
-        $Grupos = @("Reprobados", "Recursadores")
-        foreach ($Grupo in $Grupos) {
-            Remove-LocalGroupMember -Group $Grupo -Member $NombreUsuario -ErrorAction SilentlyContinue
-        }
-
-        # Agregar al usuario al nuevo grupo
-        Add-LocalGroupMember -Group $NuevoGrupo -Member $NombreUsuario
-
-        Write-Host "Usuario $NombreUsuario cambiado al grupo $NuevoGrupo." -ForegroundColor Green
-    } catch {
-        Write-Host "Error al cambiar grupo del usuario: $_" -ForegroundColor Red
-    }
+    icacls $UserFTPPath /grant "${Username}:(OI)(CI)F"
+    Write-Host "Usuario FTP '$Username' configurado con acceso a $UserFTPPath." -ForegroundColor Green
 }
