@@ -2,7 +2,7 @@
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 . "$scriptPath\Modulos\validaciones.ps1"
 . "$scriptPath\Modulos\ftpmanagement.ps1"
-. "$scriptPath\usua.ps1"
+. "$scriptPath\Modulos\usua.ps1"
 
 function Menu-Principal {
     do {
