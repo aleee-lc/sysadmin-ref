@@ -23,30 +23,9 @@ puerto_en_uso() {
     ss -tuln | grep -q ":$1 "
 }
 
-# Función para instalar dependencias esenciales
-instalar_dependencias() {
-    local paquetes=(net-tools wget default-jdk)
-    local instalar=()
-
-    for pkg in "${paquetes[@]}"; do
-        if ! dpkg -l | grep -q "^ii  $pkg"; then
-            instalar+=("$pkg")
-        fi
-    done
-
-    if [ ${#instalar[@]} -gt 0 ]; then
-        echo -e "${AMARILLO}Instalando paquetes necesarios: ${instalar[*]}...${NORMAL}"
-        apt update && apt install -y "${instalar[@]}" || {
-            echo -e "${ROJO}Error al instalar paquetes. Verifique su conexión a Internet.${NORMAL}"
-            exit 1
-        }
-    else
-        echo -e "${VERDE}Todos los paquetes necesarios ya están instalados.${NORMAL}"
-    fi
-}
-
 # ================== FUNCIONES DE INSTALACIÓN ==================
-# Instalar y configurar Apache
+
+# 📌 **Instalar y configurar Apache**
 instalar_apache() {
     local puerto=$1
 
@@ -55,9 +34,13 @@ instalar_apache() {
         apt update && apt install -y apache2
     fi
 
-    sed -i "/^Listen /d" /etc/apache2/ports.conf
+    echo -e "${AMARILLO}Configurando Apache en el puerto $puerto...${NORMAL}"
+    
+    # Eliminar todas las líneas Listen y añadir la nueva
+    sed -i '/^Listen /d' /etc/apache2/ports.conf
     echo "Listen $puerto" >> /etc/apache2/ports.conf
 
+    # Modificar VirtualHost para el nuevo puerto
     sed -i "s|<VirtualHost \*:.*>|<VirtualHost *:$puerto>|g" /etc/apache2/sites-available/000-default.conf
 
     systemctl restart apache2
@@ -70,7 +53,7 @@ instalar_apache() {
     fi
 }
 
-# Instalar y configurar Tomcat
+# 📌 **Instalar y configurar Tomcat**
 instalar_tomcat() {
     local version=$1
     local puerto=$2
@@ -100,6 +83,9 @@ instalar_tomcat() {
     chown -R tomcat:tomcat "$tomcat_home"
     chmod +x "$tomcat_home/bin/"*.sh
 
+    echo -e "${AMARILLO}Configurando Tomcat en el puerto $puerto...${NORMAL}"
+    
+    # Modificar solo la PRIMERA aparición de `port="8080"`
     sed -i '0,/<Connector port="8080"/s//<Connector port="'"$puerto"'"/' "$tomcat_home/conf/server.xml"
 
     systemctl daemon-reload
@@ -115,7 +101,7 @@ instalar_tomcat() {
     fi
 }
 
-# Instalar Nginx o Lighttpd
+# 📌 **Instalar Nginx o Lighttpd**
 instalar_servidor() {
     local servicio=$1
     local paquete=$2
@@ -129,13 +115,15 @@ instalar_servidor() {
     validar_numero "$puerto" || { echo -e "${ROJO}Puerto inválido.${NORMAL}"; return; }
     puerto_en_uso "$puerto" && { echo -e "${ROJO}Puerto en uso.${NORMAL}"; return; }
 
+    echo -e "${AMARILLO}Configurando $servicio en el puerto $puerto...${NORMAL}"
+
     case "$servicio" in
         "Nginx")
-            sed -i "s|listen 80;|listen $puerto;|g" /etc/nginx/sites-available/default
+            sed -i "s|listen 80;|listen $puerto;|" /etc/nginx/sites-available/default
             systemctl restart nginx
             ;;
         "Lighttpd")
-            sed -i "s|server.port[[:space:]]=[[:space:]][0-9]*|server.port = $puerto|" /etc/lighttpd/lighttpd.conf
+            sed -i "s|server.port[[:space:]]*=[[:space:]]*[0-9]*|server.port = $puerto|" /etc/lighttpd/lighttpd.conf
             systemctl restart lighttpd
             ;;
     esac
@@ -149,8 +137,6 @@ instalar_servidor() {
 }
 
 # ================== MENÚ PRINCIPAL ==================
-instalar_dependencias
-
 PS3="Seleccione el servicio a instalar: "
 options=("Apache" "Nginx" "Tomcat" "Lighttpd" "Salir")
 
