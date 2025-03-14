@@ -1,76 +1,133 @@
-#!/bin/bash
-
-# Funcion para obtener versiones de Apache
-obtener_versiones_apache() {
-    curl -s https://downloads.apache.org/httpd/ | grep -Eo 'httpd-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz' | \
-    sed 's/httpd-//;s/.tar.gz//' | sort -V | tail -5
-}
-
-# Funcion para obtener versiones de Tomcat
-obtener_versiones_tomcat() {
-    curl -s https://downloads.apache.org/tomcat/tomcat-10/ | grep -Eo 'v10\.[0-9]+\.[0-9]+' | sort -V | tail -5
-}
-
-# Funcion para capturar el puerto
-capturar_puerto(){
-    while true; do
-        read -p "Ingrese el puerto en el que desea configurar el servicio (1024-65535): " puerto
-        if [[ ! "$puerto" =~ ^[0-9]+$ ]] || [ "$puerto" -lt 1024 ] || [ "$puerto" -gt 65535 ]; then
-            echo "¡Puerto inválido! Ingrese otro puerto nuevamente."
-        else
-            break
+# Función para instalar dependencias esenciales
+instalar_dependencias() {
+    for pkg in net-tools wget default-jdk; do
+        if ! command -v "$(basename $pkg)" &>/dev/null; then
+            echo -e "${AMARILLO}Instalando $pkg...${NORMAL}"
+            apt update && apt install -y "$pkg"
         fi
     done
 }
 
-# Funcion para instalar Apache
-instalar_apache(){
-    echo "Buscando versiones disponibles de Apache..."
-    versiones=$(obtener_versiones_apache)
-    echo "Versiones disponibles:"
-    echo "$versiones"
-    read -p "Elija la versión de Apache que desea instalar: " version
+# Función para instalar y configurar Apache
+instalar_apache() {
+    local puerto=$1
 
-    echo "Instalando Apache $version..."
-    apt update && apt install -y apache2
+    if ! dpkg -l | grep -q "^ii  apache2"; then
+        echo -e "${AMARILLO}Instalando Apache2...${NORMAL}"
+        apt update && apt install -y apache2
+    fi
 
-    capturar_puerto
-    sed -i "s/Listen 80/Listen $puerto/" /etc/apache2/ports.conf
+    sed -i "/^Listen /c\Listen $puerto" /etc/apache2/ports.conf
+    sed -i "s/<VirtualHost \*:80>/<VirtualHost *:$puerto>/g" /etc/apache2/sites-available/000-default.conf
+
     systemctl restart apache2
-
-    echo " Apache versión $version instalado correctamente en el puerto $puerto."
+    if systemctl is-active --quiet apache2; then
+        echo -e "${VERDE}✓ Apache2 funcionando en el puerto $puerto${NORMAL}"
+    else
+        echo -e "${ROJO}✗ Error al iniciar Apache2.${NORMAL}"
+        systemctl status apache2 --no-pager
+    fi
 }
 
-# Funcion para instalar Nginx
-instalar_nginx(){
-    apt update && apt install -y nginx
-    capturar_puerto
-    sed -i "s/listen 80;/listen $puerto;/" /etc/nginx/sites-available/default
-    systemctl restart nginx
-    echo "Nginx instalado correctamente en el puerto $puerto."
+# Función para instalar Tomcat manualmente
+instalar_tomcat() {
+    local version=$1
+    local puerto=$2
+    local tomcat_home="/opt/tomcat"
+
+    if [ -d "$tomcat_home" ]; then
+        echo -e "${VERDE}Tomcat ya está instalado en $tomcat_home.${NORMAL}"
+        read -p "¿Desea reinstalar Tomcat? (s/n): " respuesta
+        [[ "$respuesta" != "s" && "$respuesta" != "S" ]] && return
+        systemctl stop tomcat 2>/dev/null
+        rm -rf "$tomcat_home" /etc/systemd/system/tomcat.service
+        systemctl daemon-reload
+    fi
+
+    mkdir -p "$tomcat_home" && cd /tmp
+    local tomcat_url="https://archive.apache.org/dist/tomcat/tomcat-${version:0:1}/v$version/bin/apache-tomcat-$version.tar.gz"
+
+    if wget -q "$tomcat_url" -O tomcat.tar.gz; then
+        tar xf tomcat.tar.gz -C "$tomcat_home" --strip-components=1
+        rm tomcat.tar.gz
+    else
+        echo -e "${ROJO}Error al descargar Tomcat.${NORMAL}"
+        return 1
+    fi
+
+    id -u tomcat &>/dev/null || useradd -m -d "$tomcat_home" -U -s /bin/false tomcat
+    chown -R tomcat:tomcat "$tomcat_home"
+    chmod +x "$tomcat_home/bin/"*.sh
+
+    sed -i "s/port=\"8080\"/port=\"$puerto\"/" "$tomcat_home/conf/server.xml"
+
+    cat > /etc/systemd/system/tomcat.service << EOF
+[Unit]
+Description=Apache Tomcat Web Application Container
+After=network.target
+
+[Service]
+Type=forking
+User=tomcat
+Group=tomcat
+Environment="JAVA_HOME=/usr/lib/jvm/default-java"
+Environment="CATALINA_HOME=$tomcat_home"
+Environment="CATALINA_BASE=$tomcat_home"
+Environment="CATALINA_PID=$tomcat_home/temp/tomcat.pid"
+Environment="CATALINA_OPTS=-Xms512M -Xmx1024M"
+
+ExecStart=$tomcat_home/bin/startup.sh
+ExecStop=$tomcat_home/bin/shutdown.sh
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable tomcat
+    systemctl start tomcat
+
+    if systemctl is-active --quiet tomcat; then
+        echo -e "${VERDE}✓ Tomcat $version funcionando en el puerto $puerto${NORMAL}"
+    else
+        echo -e "${ROJO}✗ Error al iniciar Tomcat.${NORMAL}"
+        tail -n 20 "$tomcat_home/logs/catalina.out"
+        systemctl status tomcat --no-pager
+    fi
 }
 
-# Funcion para instalar Tomcat
-instalar_tomcat(){
-    echo "Buscando versiones disponibles de Tomcat..."
-    versiones=$(obtener_versiones_tomcat)
-    echo "Versiones disponibles:"
-    echo "$versiones"
-    read -p "Elija la versión de Tomcat que desea instalar: " version
+# Función para instalar Nginx o Lighttpd
+instalar_servidor() {
+    local servicio=$1
+    local paquete=$2
 
-    echo "Instalando Tomcat $version..."
-    apt update && apt install -y openjdk-11-jdk wget
+    if ! dpkg -l | grep -q "^ii  $paquete"; then
+        echo -e "${AMARILLO}Instalando $servicio...${NORMAL}"
+        apt update && apt install -y "$paquete"
+    fi
 
-    cd /opt
-    wget https://downloads.apache.org/tomcat/tomcat-10/$version/bin/apache-tomcat-${version#v}.tar.gz
-    tar -xvzf apache-tomcat-${version#v}.tar.gz
-    mv apache-tomcat-${version#v} tomcat
-    rm apache-tomcat-${version#v}.tar.gz
+    read -p "Ingrese el puerto para $servicio (1-65535): " puerto
+    validar_numero "$puerto" || { echo -e "${ROJO}Puerto inválido.${NORMAL}"; return; }
+    puerto_en_uso "$puerto" && { echo -e "${ROJO}Puerto en uso.${NORMAL}"; return; }
 
-    capturar_puerto
-    sed -i "s/8080/$puerto/" /opt/tomcat/conf/server.xml
-    chmod +x /opt/tomcat/bin/*.sh
-    /opt/tomcat/bin/startup.sh
+    case "$servicio" in
+        "Nginx")
+            sed -i "s/listen 80;/listen $puerto;/" /etc/nginx/sites-available/default
+            systemctl restart nginx
+            ;;
+        "Lighttpd")
+            sed -i "s/server.port[[:space:]]=[[:space:]][0-9]*/server.port = $puerto/" /etc/lighttpd/lighttpd.conf
+            systemctl restart lighttpd
+            ;;
+    esac
 
-    echo "Tomcat versión $version instalado correctamente en el puerto $puerto."
+    if systemctl is-active --quiet "$paquete"; then
+        echo -e "${VERDE}✓ $servicio funcionando en el puerto $puerto${NORMAL}"
+    else
+        echo -e "${ROJO}✗ Error al iniciar $servicio.${NORMAL}"
+        systemctl status "$paquete" --no-pager
+    fi
 }
+
+# Instalar dependencias esenciales
+instalar_dependencias
