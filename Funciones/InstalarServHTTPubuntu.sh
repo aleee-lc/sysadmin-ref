@@ -1,26 +1,3 @@
-# Función para instalar dependencias esenciales
-instalar_dependencias() {
-    local paquetes=(net-tools wget default-jdk)
-    local instalar=()
-
-    # Verificar qué paquetes no están instalados
-    for pkg in "${paquetes[@]}"; do
-        if ! dpkg -l | grep -q "^ii  $pkg"; then
-            instalar+=("$pkg")
-        fi
-    done
-
-    # Instalar solo si hay paquetes faltantes
-    if [ ${#instalar[@]} -gt 0 ]; then
-        echo -e "${AMARILLO}Instalando paquetes necesarios: ${instalar[*]}...${NORMAL}"
-        apt update && apt install -y "${instalar[@]}" || {
-            echo -e "${ROJO}Error al instalar paquetes. Verifique su conexión a Internet.${NORMAL}"
-            exit 1
-        }
-    else
-        echo -e "${VERDE}Todos los paquetes necesarios ya están instalados.${NORMAL}"
-    fi
-}
 
 # Función para instalar y configurar Apache
 instalar_apache() {
@@ -143,5 +120,3 @@ instalar_servidor() {
     fi
 }
 
-# Instalar dependencias esenciales
-instalar_dependencias
