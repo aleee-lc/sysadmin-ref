@@ -1,4 +1,4 @@
-# sslhttp.ps1 SIN EMOJIS NI CARACTERES EXTRAÑOS
+# sslhttp.ps1 FINAL LISTO PARA EJECUTAR
 
 function Validar-Admin {
     if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
@@ -20,6 +20,8 @@ function Instalar-Nginx {
     $choice = Read-Host "Selecciona la versión que deseas descargar (1-$($versions.Count))"
     $selectedVersion = $versions[$choice - 1]
 
+    if (!(Test-Path -Path "C:\\Temp")) { New-Item -ItemType Directory -Path "C:\\Temp" | Out-Null }
+
     Write-Host "Descargando NGINX versión $selectedVersion..."
     $downloadUrl = "https://nginx.org/download/nginx-$selectedVersion.zip"
     $output = "C:\\Temp\\nginx-$selectedVersion.zip"
@@ -32,6 +34,9 @@ function Instalar-Nginx {
 
     $puerto = Read-Host "Ingresa el puerto que deseas configurar para NGINX"
     Write-Host "Puerto seleccionado: $puerto"
+
+    $confFolder = "C:\\tools\\nginx-$selectedVersion\\conf"
+    if (!(Test-Path -Path $confFolder)) { New-Item -ItemType Directory -Path $confFolder | Out-Null }
 
     $conf = @"
 worker_processes  1;
@@ -53,7 +58,7 @@ http {
 }
 "@
 
-    $confPath = "C:\\tools\\nginx-$selectedVersion\\conf\\nginx.conf"
+    $confPath = "$confFolder\\nginx.conf"
     Set-Content -Path $confPath -Value $conf -Force
     Write-Host "Configuración de NGINX generada con puerto $puerto"
 
