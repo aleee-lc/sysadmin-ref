@@ -1,4 +1,3 @@
-Export-ModuleMember -Function Validar-Admin
 
 function Validar-Admin {
     if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
@@ -8,3 +7,7 @@ function Validar-Admin {
         Write-Host "✅ Validación de Administrador correcta" -ForegroundColor Green
     }
 }
+
+
+
+Export-ModuleMember -Function Validar-Admin
