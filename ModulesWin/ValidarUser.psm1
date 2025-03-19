@@ -1,17 +1,10 @@
-Export-ModuleMember -Function ValidarAdmin
+Export-ModuleMember -Function Validar-Admin
 
-function ValidarAdmin {
-    param (
-        [string]$OptionalParameter  # Ejemplo de parámetro opcional si quieres usarlo
-    )
-
-    # Verificar si se ejecuta como Administrador
+function Validar-Admin {
     if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-        Write-Host "Este script debe ejecutarse como Administrador." -ForegroundColor Red
+        Write-Host "❌ Este script debe ejecutarse como Administrador." -ForegroundColor Red
         Exit
+    } else {
+        Write-Host "✅ Validación de Administrador correcta" -ForegroundColor Green
     }
-
-    Write-Host "El script se está ejecutando como Administrador." -ForegroundColor Green
 }
-
-
