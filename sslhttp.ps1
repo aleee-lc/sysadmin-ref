@@ -1,4 +1,4 @@
-# sslhttp.ps1 COMPLETO - Elegir versión de NGINX o instalar IIS/Lighttpd y elegir puerto
+# sslhttp.ps1 COMPLETO Y CORREGIDO - Selección de versión, puerto y rutas corregidas
 
 function Validar-Admin {
     if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
@@ -54,11 +54,11 @@ http {
 }
 "@
 
-    $confPath = "C:\\tools\\nginx-$selectedVersion\\nginx-$selectedVersion\\conf\\nginx.conf"
+    $confPath = "C:\\tools\\nginx-$selectedVersion\\conf\\nginx.conf"
     Set-Content -Path $confPath -Value $conf -Force
     Write-Host "✅ Configuración de NGINX generada con puerto $puerto"
 
-    $nginxExe = "C:\\tools\\nginx-$selectedVersion\\nginx-$selectedVersion\\nginx.exe"
+    $nginxExe = "C:\\tools\\nginx-$selectedVersion\\nginx.exe"
     if (Test-Path $nginxExe) {
         Write-Host "🔎 Versión de NGINX:"
         & $nginxExe -v
