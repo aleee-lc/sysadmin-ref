@@ -1,0 +1,97 @@
+function obtenerPuerto {
+    param ([string]$msg)
+
+    $ports_restricted = @(1433, 1434, 1521, 3306, 3389,
+                          1, 7, 9, 11, 13, 15, 17, 19, 137, 138, 139, 2049, 3128, 5432, 6000, 6379, 
+                          6660, 6661, 6662, 6663, 6664, 6665, 6666, 6667, 6668, 6669, 27017, 8000, 8080, 8888)
+
+    while ($true) {
+        $port = Read-Host $msg
+
+        if ([string]::IsNullOrEmpty($port)){
+            return
+        }
+
+        if ($port -match '^\d+$') {
+            $port = [int]$port
+
+            if ($port -lt 1 -or $port -gt 65535) {
+                Write-Host "El puerto debe estar entre 1 y 65535." -ForegroundColor Red
+                continue
+            }
+
+            if (netstat -an | Select-String ":$port " | Where-Object { $_ -match "LISTENING" }) {
+                Write-Host "El puerto $port ya está en uso. Intenta otro." -ForegroundColor Yellow
+                continue
+            }
+
+            if ($port -in $ports_restricted){
+                Write-Host "El puerto $port está restringido. Intenta otro." -ForegroundColor Yellow
+                continue
+            }
+
+            return $port
+        } else {
+            Write-Host "Ingresa un número válido." -ForegroundColor Red
+        }
+    }
+}
+
+function configurarIIS {
+    param([string]$port)
+    
+    Write-Host "Configurando IIS... " -ForegroundColor Green
+
+    if (-not (Get-WindowsFeature -Name Web-Server).Installed) {
+        Install-WindowsFeature -Name Web-Server -IncludeManagementTools
+    }
+
+    New-NetFirewallRule -DisplayName "IIS Port $port" -Direction Inbound -Action Allow -Protocol TCP -LocalPort $port -ErrorAction SilentlyContinue
+
+    Import-Module WebAdministration
+
+    Remove-WebBinding -Name "Default Web Site" -Protocol "http" -Port 80 -ErrorAction SilentlyContinue
+
+    New-WebBinding -Name "Default Web Site" -Protocol "http" -Port $port -IPAddress "*"
+
+    iisreset
+}
+
+function mostrarMenuHTTP {
+    Write-Host "--- Servicios HTTP ---"
+    Write-Host "1) IIS"
+    Write-Host "2) Apache"
+    Write-Host "3) Nginx"
+    Write-Host "4) Salir"
+}
+
+function mostrarMenuHTTP2 {
+    param (
+        [string]$service,
+        [string]$stable,
+        [string]$mainline
+    )
+    Write-Host "--- $service ---"
+    Write-Host "1. Versión LTS: $stable"
+    Write-Host "2. Versión de desarrollo: $mainline"
+    Write-Host "3. Salir"
+}
+
+function descargarApache {
+    # Aquí iría la lógica de descarga de Apache
+}
+
+function configurarApache {
+    # Aquí iría la lógica de configuración de Apache
+}
+
+function descargarNginx {
+    # Aquí iría la lógica de descarga de Nginx
+}
+
+function configurarNginx {
+    # Aquí iría la lógica de configuración de Nginx
+}
+
+# Exportar todas las funciones
+Export-ModuleMember -Function obtenerPuerto, configurarIIS, mostrarMenuHTTP, mostrarMenuHTTP2, descargarApache, configurarApache, descargarNginx, configurarNginx
