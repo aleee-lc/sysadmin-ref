@@ -78,10 +78,8 @@ function Configurar-FTP {
         Write-Host "IP configurada correctamente en $ip_address" -ForegroundColor Green
     }
     
-    Export-ModuleMember -Function Configurar-IP
 
-    Import-Module "C:\Users\Administrator\Desktop\practicas\validaciones-ps1\Validar-NombreUsuario.psm1"
-Import-Module "C:\Users\Administrator\Desktop\practicas\validaciones-ps1\Validar-Contrasena.psm1"
+
 function Crear-UsuarioFTP {
     $NombreUsuario = Validar-NombreUsuario  # Se asegura que sea válido antes de continuar
     $Password = Validar-Contrasena -NombreUsuario $NombreUsuario  # Se asegura que la contraseña sea válida
@@ -122,7 +120,7 @@ function Crear-UsuarioFTP {
     Write-Host "Usuario $NombreUsuario creado en el grupo $Grupo." -ForegroundColor Green
 }
 
-Export-ModuleMember -Function Crear-UsuarioFTP
+
 # Lista de nombres reservados por Windows
 $NombresReservados = @("Administrator", "Guest", "System", "LocalService", "NetworkService", "DefaultAccount")
 
@@ -172,7 +170,6 @@ function Validar-NombreUsuario {
     }
 }
 
-Export-ModuleMember -Function Validar-NombreUsuario
 
 
 function Cambiar-GrupoFTP {
@@ -214,7 +211,6 @@ function Cambiar-GrupoFTP {
     Write-Host "Usuario $NombreUsuario ahora pertenece a $NuevoGrupo." -ForegroundColor Green
 }
 
-Export-ModuleMember -Function Cambiar-GrupoFTP
 
 function Validar-Contrasena {
     param ([string]$NombreUsuario)
@@ -253,3 +249,8 @@ function Validar-Contrasena {
 }
 
 Export-ModuleMember -Function Validar-Contrasena
+Export-ModuleMember -Function Crear-UsuarioFTP
+Export-ModuleMember -Function Cambiar-GrupoFTP
+Export-ModuleMember -Function Validar-NombreUsuario
+Export-ModuleMember -Function Configurar-IP
+
