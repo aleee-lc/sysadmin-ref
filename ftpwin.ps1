@@ -1,24 +1,31 @@
-# Importar módulos dinámicamente
-$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
-. "$scriptPath\Modulos\validaciones.ps1"
-. "$scriptPath\Modulos\ftpmanagement.ps1"
-. "$scriptPath\Modulos\usua.ps1"
+Import-Module "C:\Users\Administrator\sysadmin-ref\Modules-Win\FuncionesFTP.psm1"
 
-function Menu-Principal {
-    do {
-        Write-Host "`n=== Menú Principal ===" -ForegroundColor DarkGreen
-        Write-Host "1. Instalar y Configurar Servidor FTP"
-        Write-Host "2. Crear Usuario FTP"
-        Write-Host "3. Salir"
+# Definir la IP fija a usar
+$ip_address = "192.168.171.137"
 
-        $opcion = Read-Host "Seleccione una opción (1-3)"
-        switch ($opcion) {
-            "1" { Instalar-FTP; Configurar-FTP }
-            "2" { Crear-UsuarioFTP }
-            "3" { break }
-            default { Write-Host "Opción inválida." -ForegroundColor Red }
+# Llamar a las funciones principales
+Configurar-IP -ip_address $ip_address
+Configurar-FTP
+
+# Menú Interactivo
+while ($true) {
+    Write-Host "\n=== Menú de Gestion FTP ===" -ForegroundColor Green
+    Write-Host "1. Crear un nuevo usuario FTP"
+    Write-Host "2. Cambiar de grupo a un usuario"
+    Write-Host "3. Salir"
+    
+    $opcion = Read-Host "Seleccione una opción (1-3)"
+    
+    switch ($opcion) {
+        "1" { Crear-UsuarioFTP }
+        "2" { Cambiar-GrupoFTP }
+        "3" {
+            Write-Host "Saliendo..." -ForegroundColor Yellow
+            exit
         }
-    } while ($true)
-}
 
-Menu-Principal
+        default {
+            Write-Host "Opción inválida. Intente de nuevo." -ForegroundColor Red
+        }
+    }
+}
