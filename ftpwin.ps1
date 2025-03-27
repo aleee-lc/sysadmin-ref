@@ -1,4 +1,4 @@
-Import-Module "C:\Users\Administrator\sysadmin-ref\Modules-Win\FuncionesFTP.psm1"
+Import-Module "C:\Users\Administrator\sysadmin-ref\ModulesWin\FuncionesFTP.psm1"
 
 # Definir la IP fija a usar
 $ip_address = "192.168.171.137"
